@@ -7,11 +7,12 @@ The ChatGptJsonTranslator is a fast and simple Python script that translates the
 - Fast translation of JSON values without changing the keys
 - Customizable translation to multiple languages
 - Simple and easy to use
+- customizable input and output file path
 
 ## Prerequisites
 
 - Python 3.x
-- ChatGpt API key
+- ChatGpt API key (https://platform.openai.com/account/api-keys)
 - JSON input file
 
 ## Getting Started
@@ -31,12 +32,14 @@ The ChatGptJsonTranslator is a fast and simple Python script that translates the
 
    ```
    # Credential and model for the chatGpt instance
-   apiKey = "this-is-not-a-key"
-   model = "gpt-3.5-turbo"
-   role = "user"
-   inputFilePath = "locales.json"
-   outputFilepath = "."
-   translateTo = ["french", "japanese", "spanish"]
+   {
+        "apiKey": "This-is-not-a-key",
+        "roles": "user",
+        "model": "gpt-3.5-turbo",
+        "inputPath": "locales.json",
+        "outputPath": "path/to/dest",
+        "translateTo": ["french", "spanish", "japanese"]
+    }
    ```
 
 4. Run the script
