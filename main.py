@@ -36,9 +36,13 @@ class Translator:
         
         destination = f'{self.outputPath}/{self.translateTo[params["index"]]}.json'
 
-        jsonObj = json.loads(params["translatedJson"])
-        with open(destination, 'w') as f:
-            json.dump(jsonObj, f, indent=2, ensure_ascii=False)
+        try:
+            jsonObj = json.loads(params["translatedJson"])
+            with open(destination, 'w') as f:
+                json.dump(jsonObj, f, indent=2, ensure_ascii=False)
+        except e:
+            print(e)
+            print(f"failed to translate to {self.translateTo[params['index']]}")
     
     # start sending request with processPool for faster performance
     def startTranslating(self):

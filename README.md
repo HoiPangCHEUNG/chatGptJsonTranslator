@@ -97,6 +97,10 @@ If you encounter any issues while using the ChatGptJsonTranslator, please try th
 - Ensure that your input JSON file is valid and formatted correctly
 - Verify that you have the necessary permissions to read from and write to the specified file paths
 
+If you encounter a `JSONDecodeError` during translation, you can try to translate the failed language only by isolating the specific value in `translateTo`.
+
+It's also worth noting that the answer from ChatGPT may vary from time to time, and the JSON string returned may not always be valid. In such cases, you may need to manually correct or modify the JSON string to make it valid before translating it.
+
 ## License
 
 MIT License.
