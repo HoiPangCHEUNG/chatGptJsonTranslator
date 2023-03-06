@@ -1,13 +1,15 @@
 # ChatGptJsonTranslator
 
-The ChatGptJsonTranslator is a fast and simple Python script that translates the content of a JSON file into different languages using the ChatGpt API. This script is perfect for developers who are struggling with the localization of their applications.
+The ChatGptJsonTranslator is a simple Python script that translates the content of a JSON file into multiple languages using the ChatGpt API. This tool is especially useful for developers who need to localize their applications.
 
 ## Features
 
 - Fast translation of JSON values without changing the keys
 - Customizable translation to multiple languages
 - Simple and easy to use
-- customizable input and output file path
+- Customizable input and output file path
+- Automatic partitioning of large JSON files into smaller chunks
+- Translation to different languages in parallel
 
 ## Prerequisites
 
@@ -26,13 +28,19 @@ The ChatGptJsonTranslator is a fast and simple Python script that translates the
    ```
    pip3 install -r requirements.txt
    ```
-3. Update your `apiKey`, `model`, `inputFilePath`, `outputFilepath`, and `translateTo` in the main function
+3. Update the following parameters in the main function of the chatGptTranslator.py script:
 
-   For Example
+- `apiKey`: Your ChatGpt API key
+- `model`: The ChatGpt model to use for translation
+- `inputPath`: The path to the input JSON file
+- `outputPath`: The path to the output directory
+- `translateTo`: A list of languages to translate the JSON content to
 
-   ```
-   # Credential and model for the chatGpt instance
-   {
+  For Example
+
+  ```
+  # Credential and model for the chatGpt instance
+  {
         "apiKey": "This-is-not-a-key",
         "roles": "user",
         "model": "gpt-3.5-turbo",
@@ -40,7 +48,7 @@ The ChatGptJsonTranslator is a fast and simple Python script that translates the
         "outputPath": "path/to/dest",
         "translateTo": ["french", "spanish", "japanese"]
     }
-   ```
+  ```
 
 4. Run the script
 
@@ -97,7 +105,9 @@ If you encounter any issues while using the ChatGptJsonTranslator, please try th
 - Ensure that your input JSON file is valid and formatted correctly
 - Verify that you have the necessary permissions to read from and write to the specified file paths
 
-If you encounter a `JSONDecodeError` during translation, you can try to translate the failed language only by isolating the specific value in `translateTo`.
+If you encounter `JSONDecodeError` during translation, you can try to translate the failed language only by isolating the specific value in `translateTo`.
+
+If you encounter `Maximum Api requests reached` during translation, try translating to one language only first.
 
 It's also worth noting that the answer from ChatGPT may vary from time to time, and the JSON string returned may not always be valid. In such cases, you may need to manually correct or modify the JSON string to make it valid before translating it.
 
