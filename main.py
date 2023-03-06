@@ -2,6 +2,7 @@ import openai
 import os
 import json
 import concurrent.futures
+import sys
 
 
 class Translator:
@@ -9,7 +10,8 @@ class Translator:
         self.apiKey = params["apiKey"]
         self.role = params["roles"]
         self.model = params["model"]
-        self.jsonData = None
+        self.maxChunkSize = params["maxChunkSize"]
+        self.jsonData = []
         pass
 
     def setFilePathAndLang(self, params):
@@ -17,20 +19,49 @@ class Translator:
         self.outputPath = params["outputPath"]
         self.translateTo = params["translateTo"]
 
-    # Get response from gptBot
+    # Get response from gpt endpoint
     def getResponse(self, index):
-        openai.api_key = self.apiKey
+        with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
+            future_results = [executor.submit(
+                self.loopPartitionedJsonData, {"partitionedJsonData": partitionedJsonData, "index": index}) for partitionedJsonData in self.jsonData]
 
+            response = []
+            for future in concurrent.futures.as_completed(future_results):
+                response.append(future.result())
+
+        return response
+
+    # loop partitionedJson and send request to gpt endpoint
+    def loopPartitionedJsonData(self, params):
+        openai.api_key = self.apiKey
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
-            messages=[{"role": self.role, "content": f"Translate the below jsonStr to {self.translateTo[index]}, in proper JSON format. {self.jsonData}"}])
+            messages=[{"role": self.role, "content": f"Translate the value of below jsonStr to {self.translateTo[params['index']]}, in proper JSON format. {params['partitionedJsonData']}"}])
 
         return response.choices[0].message
 
     # Read input jsonFile
     def readFile(self):
         with open(self.inputPath, 'r') as f:
-            self.jsonData = json.load(f)
+            jsonData = json.load(f)
+
+        partitionedJsonData = {}
+        size = 0
+        for key in jsonData:
+            size += sys.getsizeof(jsonData[key])
+            if size < self.maxChunkSize:
+                partitionedJsonData.update({key: jsonData[key]})
+            elif not partitionedJsonData:
+                print(
+                    "Sorry, the JSON data is too large to break down. Aborting mission.")
+                exit()
+            else:
+                self.jsonData.append(partitionedJsonData)
+                partitionedJsonData = {}
+                size = 0
+
+        if partitionedJsonData:
+            self.jsonData.append(partitionedJsonData)
 
     # Write translated json to destination
     def writeFile(self, params):
@@ -40,7 +71,11 @@ class Translator:
         destination = f'{self.outputPath}/{self.translateTo[params["index"]]}.json'
 
         try:
-            jsonObj = json.loads(params["translatedJson"])
+            jsonStrList = [json.loads(translatedJson["content"])
+                           for translatedJson in params["response"]]
+            jsonObj = {}
+            for jsonStr in jsonStrList:
+                jsonObj.update(jsonStr)
             with open(destination, 'w') as f:
                 json.dump(jsonObj, f, indent=2, ensure_ascii=False)
         except Exception as e:
@@ -48,11 +83,11 @@ class Translator:
             print(
                 f"failed to translate to {self.translateTo[params['index']]}")
 
-    # start sending request with processPool for faster performance
-    def startTranslating(self):
+    # entrypoint
+    def start(self):
         self.readFile()
 
-        with concurrent.futures.ProcessPoolExecutor() as executor:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
             future_results = [executor.submit(
                 self.translate, index) for index in range(len(self.translateTo))]
 
@@ -61,11 +96,14 @@ class Translator:
 
             print("done")
 
+    # start translating json to different language
     def translate(self, index):
         print(f"translating to {self.translateTo[index]}")
-        translatedJson = self.getResponse(index)
+        response = self.getResponse(index)
+        print(
+            f"translated to {self.translateTo[index]}, writing to destination...")
         self.writeFile(
-            {"translatedJson": translatedJson["content"], "index": index})
+            {"response": response, "index": index})
         return
 
 
@@ -74,7 +112,8 @@ if __name__ == "__main__":
     translator = Translator({
         "apiKey": "{YOUR_API_KEY}",
         "roles": "user",
-        "model": "gpt-3.5-turbo"
+        "model": "gpt-3.5-turbo",
+        "maxChunkSize": 2048,
     })
 
     translator.setFilePathAndLang({
@@ -83,4 +122,4 @@ if __name__ == "__main__":
         "translateTo": []
     })
 
-    translator.startTranslating()
+    translator.start()
