@@ -11,34 +11,47 @@ class Translator:
         self.role = params["roles"]
         self.model = params["model"]
         self.maxChunkSize = params["maxChunkSize"]
-        self.jsonData = []
-        pass
 
-    def setFilePathAndLang(self, params):
         self.inputPath = params["inputPath"]
         self.outputPath = params["outputPath"]
         self.translateTo = params["translateTo"]
 
-    # Get response from gpt endpoint
-    def getResponse(self, index):
-        with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
+        self.maxGptWoker = params["maxGptWoker"]
+        self.maxJsonFileWorker = params["maxJsonFileWorker"]
+        pass
+
+    def updateFilePathAndLang(self, params):
+        self.inputPath = params["inputPath"]
+        self.outputPath = params["outputPath"]
+        self.translateTo = params["translateTo"]
+
+    def updateMaxWorkerNum(self, params):
+        self.maxGptWoker = params["maxGptWoker"]
+        self.maxJsonFileWorker = params["maxJsonFileWorker"]
+
+    # Loop partitionedJson and send request to gpt endpoint
+    def translatePartitionedJsonData(self, params):
+        with concurrent.futures.ProcessPoolExecutor(max_workers=self.maxGptWoker) as executor:
             future_results = [executor.submit(
-                self.loopPartitionedJsonData, {"partitionedJsonData": partitionedJsonData, "index": index}) for partitionedJsonData in self.jsonData]
+                self.getGptResponse, {"partitionedJsonData": partitionedJsonData, "index": index, "langIndex": params["langIndex"]}) for index, partitionedJsonData in enumerate(params["jsonData"])]
 
             response = [future.result()
                         for future in concurrent.futures.as_completed(future_results)]
 
         return response
 
-    # loop partitionedJson and send request to gpt endpoint
-    def loopPartitionedJsonData(self, params):
-        print("Processing...")
+    # Get response from gpt endpoint
+    def getGptResponse(self, params):
+        print(
+            f"Translating part {params['index']} to {self.translateTo[params['langIndex']]}")
 
         openai.api_key = self.apiKey
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
-            messages=[{"role": self.role, "content": f"Translate the value of below jsonStr to {self.translateTo[params['index']]}, in proper JSON format. {params['partitionedJsonData']}"}])
+            messages=[{"role": self.role, "content": f"Translate the value of below jsonStr to {self.translateTo[params['langIndex']]}, in proper JSON format. {params['partitionedJsonData']}"}])
 
+        print(
+            f"Translated Part {params['index']} to {self.translateTo[params['langIndex']]}")
         return response.choices[0].message
 
     # Read input jsonFile
@@ -46,6 +59,7 @@ class Translator:
         with open(self.inputPath, 'r') as f:
             jsonData = json.load(f)
 
+        partitionedJsonDataList = []
         partitionedJsonData = {}
         size = 0
         for key in jsonData:
@@ -57,54 +71,59 @@ class Translator:
                     "Sorry, the JSON data is too large to break down. Aborting mission.")
                 exit()
             else:
-                self.jsonData.append(partitionedJsonData)
+                partitionedJsonDataList.append(partitionedJsonData)
                 partitionedJsonData = {key: jsonData[key]}
                 size = sys.getsizeof(jsonData[key])
 
         if partitionedJsonData:
-            self.jsonData.append(partitionedJsonData)
+            partitionedJsonDataList.append(partitionedJsonData)
+
+        return partitionedJsonDataList
 
     # Write translated json to destination
     def writeFile(self, params):
         if not os.path.exists(self.outputPath):
             os.makedirs(self.outputPath)
 
-        destination = f'{self.outputPath}/{self.translateTo[params["index"]]}.json'
+        destination = f'{self.outputPath}/{self.translateTo[params["langIndex"]]}.json'
 
         try:
+            jsonObjDict = {}
             jsonObjList = [json.loads(translatedJson["content"])
                            for translatedJson in params["response"]]
-            jsonObjDict = {}
+
             for jsonStr in jsonObjList:
                 jsonObjDict.update(jsonStr)
+
             with open(destination, 'w') as f:
                 json.dump(jsonObjDict, f, indent=2, ensure_ascii=False)
+
+            print(
+                f"Translation of JSON file in {self.translateTo[params['langIndex']]} created!")
         except Exception as e:
             print(e)
             print(
-                f"Failed to translate to {self.translateTo[params['index']]}")
+                f"Failed to translate to {self.translateTo[params['langIndex']]}")
 
     # entrypoint
     def start(self):
-        self.readFile()
+        jsonData = self.readFile()
 
-        with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=self.maxJsonFileWorker) as executor:
             future_results = [executor.submit(
-                self.translate, index) for index in range(len(self.translateTo))]
+                self.translateAndWriteFiles, {"langIndex": index, "jsonData": jsonData}) for index in range(len(self.translateTo))]
 
-            for future in concurrent.futures.as_completed(future_results):
-                _ = future.result()
+            [future.result()
+             for future in concurrent.futures.as_completed(future_results)]
 
             print("Tasks Completed")
 
     # start translating json to different language
-    def translate(self, index):
-        print(f"Translating to {self.translateTo[index]}")
-        response = self.getResponse(index)
-        print(
-            f"Translated to {self.translateTo[index]}, writing to destination...")
+    def translateAndWriteFiles(self, params):
+        response = self.translatePartitionedJsonData(params)
         self.writeFile(
-            {"response": response, "index": index})
+            {"response": response, "langIndex": params["langIndex"]})
+
         return
 
 
@@ -115,9 +134,9 @@ if __name__ == "__main__":
         "roles": "user",
         "model": "gpt-3.5-turbo",
         "maxChunkSize": 2048,
-    })
-
-    translator.setFilePathAndLang({
+        # Only change the number of workers when you know what you are doing
+        "maxGptWoker": 4,
+        "maxJsonFileWorker": 2,
         "inputPath": "{YOU_INPUT_FILE_PATH}",
         "outputPath": "{YOU_OUTPUT_FILE_PATH}",
         "translateTo": []
