@@ -25,14 +25,15 @@ class Translator:
             future_results = [executor.submit(
                 self.loopPartitionedJsonData, {"partitionedJsonData": partitionedJsonData, "index": index}) for partitionedJsonData in self.jsonData]
 
-            response = []
-            for future in concurrent.futures.as_completed(future_results):
-                response.append(future.result())
+            response = [future.result()
+                        for future in concurrent.futures.as_completed(future_results)]
 
         return response
 
     # loop partitionedJson and send request to gpt endpoint
     def loopPartitionedJsonData(self, params):
+        print("Processing...")
+
         openai.api_key = self.apiKey
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
@@ -57,8 +58,8 @@ class Translator:
                 exit()
             else:
                 self.jsonData.append(partitionedJsonData)
-                partitionedJsonData = {}
-                size = 0
+                partitionedJsonData = {key: jsonData[key]}
+                size = sys.getsizeof(jsonData[key])
 
         if partitionedJsonData:
             self.jsonData.append(partitionedJsonData)
@@ -71,17 +72,17 @@ class Translator:
         destination = f'{self.outputPath}/{self.translateTo[params["index"]]}.json'
 
         try:
-            jsonStrList = [json.loads(translatedJson["content"])
+            jsonObjList = [json.loads(translatedJson["content"])
                            for translatedJson in params["response"]]
-            jsonObj = {}
-            for jsonStr in jsonStrList:
-                jsonObj.update(jsonStr)
+            jsonObjDict = {}
+            for jsonStr in jsonObjList:
+                jsonObjDict.update(jsonStr)
             with open(destination, 'w') as f:
-                json.dump(jsonObj, f, indent=2, ensure_ascii=False)
+                json.dump(jsonObjDict, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(e)
             print(
-                f"failed to translate to {self.translateTo[params['index']]}")
+                f"Failed to translate to {self.translateTo[params['index']]}")
 
     # entrypoint
     def start(self):
@@ -94,14 +95,14 @@ class Translator:
             for future in concurrent.futures.as_completed(future_results):
                 _ = future.result()
 
-            print("done")
+            print("Tasks Completed")
 
     # start translating json to different language
     def translate(self, index):
-        print(f"translating to {self.translateTo[index]}")
+        print(f"Translating to {self.translateTo[index]}")
         response = self.getResponse(index)
         print(
-            f"translated to {self.translateTo[index]}, writing to destination...")
+            f"Translated to {self.translateTo[index]}, writing to destination...")
         self.writeFile(
             {"response": response, "index": index})
         return

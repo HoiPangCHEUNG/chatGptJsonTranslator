@@ -70,7 +70,7 @@ Here's an example of what an input JSON file might look like:
 
 ```
 {
-  "welcomeMessage": "Welcome to my app!",
+  "welcomeMessage": "Hello {userName}! Welcome to my app!",
   "loginMessage": "Please log in to continue."
 }
 ```
@@ -80,20 +80,20 @@ And here's an example of what the output JSON files might look like after runnin
 ```
 // french.json
 {
-  "welcomeMessage": "Bienvenue dans mon application!",
+  "welcomeMessage": "Bonjour {userName} ! Bienvenue dans mon application !",
   "loginMessage": "Veuillez vous connecter pour continuer."
 }
 
 // japanese.json
 {
-  "welcomeMessage": "私のアプリへようこそ！",
+  "welcomeMessage": "こんにちは、{userName}さん！私のアプリへようこそ！",
   "loginMessage": "続けるにはログインしてください。"
 }
 
 // spanish.json
 {
-  "welcomeMessage": "¡Bienvenido a mi aplicación!",
-  "loginMessage": "Por favor, inicie sesión para continuar."
+  "welcomeMessage": "¡Hola {userName}! ¡Bienvenido a mi aplicación!",
+  "loginMessage": "Por favor inicie sesión para continuar."
 }
 ```
 
@@ -107,7 +107,7 @@ If you encounter any issues while using the ChatGptJsonTranslator, please try th
 
 If you encounter `JSONDecodeError` during translation, you can try to translate the failed language only by isolating the specific value in `translateTo`.
 
-If you encounter `Maximum Api requests reached` during translation, try translating to one language only first.
+If you encounter `Rate Limit reached` during translation, try translating to one language only first.
 
 It's also worth noting that the answer from ChatGPT may vary from time to time, and the JSON string returned may not always be valid. In such cases, you may need to manually correct or modify the JSON string to make it valid before translating it.
 
