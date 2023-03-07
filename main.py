@@ -16,8 +16,8 @@ class Translator:
         self.outputPath = params["outputPath"]
         self.translateTo = params["translateTo"]
 
-        self.maxGptWoker = params["maxGptWoker"]
-        self.maxJsonFileWorker = params["maxJsonFileWorker"]
+        self.maxGptWorkers = params["maxGptWorkers"]
+        self.maxJsonFileWorkers = params["maxJsonFileWorkers"]
         pass
 
     def updateFilePathAndLang(self, params):
@@ -26,12 +26,12 @@ class Translator:
         self.translateTo = params["translateTo"]
 
     def updateMaxWorkerNum(self, params):
-        self.maxGptWoker = params["maxGptWoker"]
-        self.maxJsonFileWorker = params["maxJsonFileWorker"]
+        self.maxGptWorkers = params["maxGptWorkers"]
+        self.maxJsonFileWorkers = params["maxJsonFileWorkers"]
 
     # Loop partitionedJson and send request to gpt endpoint
     def translatePartitionedJsonData(self, params):
-        with concurrent.futures.ProcessPoolExecutor(max_workers=self.maxGptWoker) as executor:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=self.maxGptWorkers) as executor:
             future_results = [executor.submit(
                 self.getGptResponse, {"partitionedJsonData": partitionedJsonData, "index": index, "langIndex": params["langIndex"]}) for index, partitionedJsonData in enumerate(params["jsonData"])]
 
@@ -109,7 +109,7 @@ class Translator:
     def start(self):
         jsonData = self.readFile()
 
-        with concurrent.futures.ProcessPoolExecutor(max_workers=self.maxJsonFileWorker) as executor:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=self.maxJsonFileWorkers) as executor:
             future_results = [executor.submit(
                 self.translateAndWriteFiles, {"langIndex": index, "jsonData": jsonData}) for index in range(len(self.translateTo))]
 
@@ -134,9 +134,9 @@ if __name__ == "__main__":
         "roles": "user",
         "model": "gpt-3.5-turbo",
         "maxChunkSize": 2048,
-        # Only change the number of workers when you know what you are doing
-        "maxGptWoker": 4,
-        "maxJsonFileWorker": 2,
+        # Do not change the number of workers unless you know what you are doing
+        "maxGptWorkers": 4,
+        "maxJsonFileWorkers": 2,
         "inputPath": "{YOU_INPUT_FILE_PATH}",
         "outputPath": "{YOU_OUTPUT_FILE_PATH}",
         "translateTo": []
