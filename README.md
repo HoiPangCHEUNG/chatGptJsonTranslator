@@ -44,9 +44,13 @@ The ChatGptJsonTranslator is a simple Python script that translates the content 
         "apiKey": "This-is-not-a-key",
         "roles": "user",
         "model": "gpt-3.5-turbo",
+        "maxChunkSize": 2048,
+        "maxJsonFileWorkers": 2,
+        "maxGptWorkers": 3,
         "inputPath": "locales.json",
-        "outputPath": "path/to/dest",
-        "translateTo": ["french", "spanish", "japanese"]
+        "outputPath": "path/to/destination",
+        "translateTo": ["french", "spanish", "japanese", "chinese"],
+        "debugMode": False
     }
   ```
 
