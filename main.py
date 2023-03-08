@@ -18,6 +18,8 @@ class Translator:
 
         self.maxGptWorkers = params["maxGptWorkers"]
         self.maxJsonFileWorkers = params["maxJsonFileWorkers"]
+
+        self.debugMode = params["debugMode"]
         pass
 
     def updateFilePathAndLang(self, params):
@@ -31,7 +33,7 @@ class Translator:
 
     # Loop partitionedJson and send request to gpt endpoint
     def translatePartitionedJsonData(self, params):
-        with concurrent.futures.ProcessPoolExecutor(max_workers=self.maxGptWorkers) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.maxGptWorkers) as executor:
             future_results = [executor.submit(
                 self.getGptResponse, {"partitionedJsonData": partitionedJsonData, "index": index, "langIndex": params["langIndex"]}) for index, partitionedJsonData in enumerate(params["jsonData"])]
 
@@ -48,7 +50,7 @@ class Translator:
         openai.api_key = self.apiKey
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
-            messages=[{"role": self.role, "content": f"Translate the value of below jsonStr to {self.translateTo[params['langIndex']]}, in proper JSON format. {params['partitionedJsonData']}"}])
+            messages=[{"role": self.role, "content": f"Please translate the below JSON into {self.translateTo[params['langIndex']]}, while keeping the key the same as the original JSON. The translation should be provided in valid JSON format using double quotes around keys and values. ```{params['partitionedJsonData']}```"}])
 
         print(
             f"Translated Part {params['index']} to {self.translateTo[params['langIndex']]}")
@@ -104,12 +106,15 @@ class Translator:
             print(e)
             print(
                 f"Failed to translate to {self.translateTo[params['langIndex']]}")
+            if self.debugMode:
+                for item in params["response"]:
+                    print(item["content"])
 
     # entrypoint
     def start(self):
         jsonData = self.readFile()
 
-        with concurrent.futures.ProcessPoolExecutor(max_workers=self.maxJsonFileWorkers) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.maxJsonFileWorkers) as executor:
             future_results = [executor.submit(
                 self.translateAndWriteFiles, {"langIndex": index, "jsonData": jsonData}) for index in range(len(self.translateTo))]
 
@@ -133,13 +138,16 @@ if __name__ == "__main__":
         "apiKey": "{YOUR_API_KEY}",
         "roles": "user",
         "model": "gpt-3.5-turbo",
+        # The maximum size of the partitioned JSON in bytes in each chunk
         "maxChunkSize": 2048,
-        # Do not change the number of workers unless you know what you are doing
-        "maxGptWorkers": 4,
+        # The maximum number of language translations that can be handled at the same time
         "maxJsonFileWorkers": 2,
+        # The maximum number of translation requests that can be handled in each jsonFileWorker
+        "maxGptWorkers": 3,
         "inputPath": "{YOU_INPUT_FILE_PATH}",
         "outputPath": "{YOU_OUTPUT_FILE_PATH}",
-        "translateTo": []
+        "translateTo": [],
+        "debugMode": True
     })
 
     translator.start()
